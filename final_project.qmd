@@ -11,3 +11,48 @@ format:
     embed-resources: TRUE
 ---
 
+# Introduction
+
+
+# Data
+
+```{r, message = FALSE, warning = FALSE, include = FALSE}
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("tidyverse")) install.packages("tidyverse")
+
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r, include = FALSE, cache = TRUE}
+# import the whole dataset
+covid <- read.csv("https://raw.githubusercontent.com/LiangqiTang/531-final-project/main/owid-covid-data.csv", header = TRUE, sep = ",")
+
+# filter out Japan and useful columns
+covid_japan <- covid[covid$iso_code == "JPN", c("date", "new_cases")]
+
+# select the data of every week
+covid_japan_week <- covid_japan[seq(1, length(covid_japan$date), 7), ]
+covid_japan_week$date <- as.Date(covid_japan_week$date)
+```
+
+# Exploratory Data Analysis
+
+```{r}
+# plot the time-series
+ggplot(covid_japan_week, aes(x = date, y = new_cases)) +
+  xlab("Date")+
+  ylab("Cases")+
+  ggtitle("Japan Covid Reports")+
+  geom_line(col = "aquamarine3")
+```
+
+# ARMA
+
+```{r}
+covid.ts <- ts(data=covid_japan_week$new_cases,start=c(2020,1),frequency=52,names=c('cases'))
+
+```
+
+
+
