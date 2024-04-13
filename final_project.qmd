@@ -1,0 +1,13 @@
+---
+title: "531 final project"
+author: "Nawat Swatthong, Liangqi Tang, Yuanjie Xu"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
+---
+
