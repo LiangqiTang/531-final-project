@@ -19,9 +19,11 @@ format:
 ```{r, message = FALSE, warning = FALSE, include = FALSE}
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("knitr")) install.packages("knitr")
 
 library(ggplot2)
 library(tidyverse)
+library(knitr)
 ```
 
 ```{r, include = FALSE, cache = TRUE}
@@ -51,8 +53,53 @@ ggplot(covid_japan_week, aes(x = date, y = new_cases)) +
 
 ```{r}
 covid.ts <- ts(data=covid_japan_week$new_cases,start=c(2020,1),frequency=52,names=c('cases'))
-
 ```
+
+```{r}
+par(mfrow = c(1,2))
+# ACF and PACF
+acf(covid.ts, lag = 48, main = "ACF Plot of Covid in Japan")
+pacf(covid.ts, lag = 48, main = "PACF Plot of Covid in Japan")
+```
+
+oscillation in ACF and PACF.
+
+```{r}
+# spectrum analysis
+
+# smoothed periodogram
+spectrum_s <- spectrum(covid.ts, spans = c(4,6,4), main = "Smoothed periodogram")
+abline(v = spectrum_s$freq[which.max(spectrum_s$spec)], lty = "dotted")
+
+spectrum_s$freq[which.max(spectrum_s$spec)]
+```
+
+frequency: $0.2311111\text{week}^{-1}$, period: $4.326923\text{week}$, about a month.
+
+```{r,warning = FALSE, message = FALSE}
+aic_table1 <- function(data,P,Q,sp,sq){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch( {arima(data, order=c(p,0,q), seasonal = list(order=c(sp,0,sq), period = 4),method = "ML")$aic}, 
+                            error = function(e){return(NA)})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+covid_aic_table <- aic_table1(covid.ts,5,5,1,1)
+kable(covid_aic_table, caption = paste("AIC of SARIMA(p,0,q),(1,0,1),  0 <= p,q <=5"), digits=2)
+```
+
+Choose ARMA(1,5)
+
+
+
+
+
+
 
 
 
