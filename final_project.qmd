@@ -20,10 +20,14 @@ format:
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("tidyverse")) install.packages("tidyverse")
 if (!require("knitr")) install.packages("knitr")
+if (!require("forecast")) install.packages("forecast")
+if (!require("forecast")) install.packages("patchwork")
 
 library(ggplot2)
 library(tidyverse)
 library(knitr)
+library(forecast)
+library(patchwork)
 ```
 
 ```{r, include = FALSE, cache = TRUE}
@@ -77,11 +81,13 @@ spectrum_s$freq[which.max(spectrum_s$spec)]
 frequency: $0.2311111\text{week}^{-1}$, period: $4.326923\text{week}$, about a month.
 
 ```{r,warning = FALSE, message = FALSE}
+# AIC table
+
 aic_table1 <- function(data,P,Q,sp,sq){
 table <- matrix(NA,(P+1),(Q+1))
 for(p in 0:P) {
 for(q in 0:Q) {
-table[p+1,q+1] <- tryCatch( {arima(data, order=c(p,0,q), seasonal = list(order=c(sp,0,sq), period = 4),method = "ML")$aic}, 
+table[p+1,q+1] <- tryCatch( {Arima(data, order=c(p,0,q), seasonal = list(order=c(sp,0,sq), period = 4),method = "ML")$aic}, 
                             error = function(e){return(NA)})
 }
 }
@@ -95,10 +101,34 @@ kable(covid_aic_table, caption = paste("AIC of SARIMA(p,0,q),(1,0,1),  0 <= p,q 
 
 Choose ARMA(1,5)
 
+```{r}
+# model diagnostics
+sarima_model <- Arima(covid.ts, order=c(1, 0, 5), seasonal=list(order=c(1, 0, 1), period=4))
 
+# plot roots
+autoplot(sarima_model)
 
+# check residuals
+checkresiduals(sarima_model)
+```
 
+```{r}
+# fitted and prediction
 
+# fitted
+p1 <- ggplot(covid_japan_week, aes(x = date, y = new_cases)) +
+  xlab("Date")+
+  ylab("cases")+
+  ggtitle("fitted vs. original")+
+  geom_line(data = covid_japan_week, aes(colour = "Original data"))+
+  geom_line(y = fitted(sarima_model), linetype = 2, aes(colour = "SARMA fit"))+
+  scale_colour_manual(name="Legend", values=c("aquamarine3","coral1"))
+
+# forecast
+p2 <- autoplot(forecast(sarima_model, h=10), main = "forecast", ylab = "Cases", xlab = "Date")
+
+p1 / p2
+```
 
 
 
