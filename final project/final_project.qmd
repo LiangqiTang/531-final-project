@@ -192,7 +192,8 @@ p1 / p2
 
 We have chosen to implement the SEIR model to simulate the COVID-19 outbreak because it accounts for the incubation period that is known to occur with COVID-19. This model introduces an 'E' stage, standing for 'exposed', indicating that individuals go through a latency period before they can infect others. This makes the SEIR model more practical in comparison to the SIR model, which does not consider this latency period.
 
-![SEIR Model Flowchart](/Users/nawatswatthong/Documents/STATS531/final_project/seir_flowchart.jpeg)
+![SEIR Model Flowchart](https://github.com/LiangqiTang/531-final-project/blob/main/final%20project/seir_flowchart.jpeg?raw=true)
+
 
 In the flowchart, each arrow represents a specific rate of transition between the stages of the SEIR model. The stages are defined as: 
 
@@ -603,8 +604,9 @@ The best global search had the following simulated parameters and log likelihood
 ```{r}
 bind_rows(global_results) %>%
   filter(loglik.se < 10 ) %>%
-  arrange(-loglik) -> best_global_results
-head(as.data.frame(best_global_results),5)
+  arrange(-loglik) %>%
+  head %>% 
+  knitr::kable(digits = 3, caption = "Global search results (in decreasing order of likelihood)")
 ```
 
 The best global search has a likelihood of  -4457.772 and a standard error of 0.257, which is not significantly better than the log likelihood of the previous local and global search. The pairs plot and simulation plot for the global search are as below.
