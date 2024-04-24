@@ -13,6 +13,9 @@ format:
 
 # Introduction
 
+The outbreak of COVID-19 since late 2019 has posed unprecedented challenges to global public health systems and societal well-being. Among the affected regions, Japan stands as a notable case study due to its unique socio-demographic characteristics, healthcare infrastructure, and governmental response strategies. According to JHU [[1]](https://gisanddata.maps.arcgis.com/apps/dashboards/bda7594740fd40299423467b48e9ecf6), by far the COVID-19 has caused total cases of 33,329,551 and total deaths of 73,046.
+
+In this study, we aim to explore the temporal dynamics of COVID-19 report cases time series in Japan using a combination of two distinct yet complementary modeling approaches: Autoregressive Moving Average (ARMA[[2]](https://en.wikipedia.org/wiki/Autoregressive_moving-average_model)) models and Susceptible-Exposed-Infectious-Recovered (SIR/SEIR[[3]](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology)) compartmental models.
 
 # Data
 
@@ -42,6 +45,8 @@ covid_japan_week <- covid_japan[seq(1, length(covid_japan$date), 7), ]
 covid_japan_week$date <- as.Date(covid_japan_week$date)
 ```
 
+The dataset comes from this github website[[4]](https://github.com/owid/covid-19-data/tree/master/public/data), whose cases and deaths are collected from World Health Organization Coronavirus Dashboard[[5]](https://data.who.int/dashboards/covid19/cases?n=c). This dataset is weekly based and we filtered out the data from Japan sorted by time. In the end, we got a time series of 222 observations from 2020-01-05 to 2024-03-31.
+
 # Exploratory Data Analysis
 
 ```{r}
@@ -53,7 +58,13 @@ ggplot(covid_japan_week, aes(x = date, y = new_cases)) +
   geom_line(col = "aquamarine3")
 ```
 
+The time series plot clearly illustrates three distinct outbreaks of COVID-19 cases: one in early 2022, another in mid to late 2022, and a third towards the end of the same year. It is important to note that this time series reflects a complex interplay of societal, political, and behavioral factors, which are challenging to fully incorporate into our analysis. Therefore, this study focuses solely on utilizing time series models to fit the original data and optimize numerical procedures to achieve maximum likelihood and optimal simulation outcomes. The emphasis lies on numerical accuracy rather than delving deeply into the underlying factors driving the data.
+
 # ARMA
+
+## Data Analysis
+
+Firstly, we explore this time series with ARMA model.
 
 ```{r}
 covid.ts <- ts(data=covid_japan_week$new_cases,start=c(2020,1),frequency=52,names=c('cases'))
@@ -66,7 +77,7 @@ acf(covid.ts, lag = 48, main = "ACF Plot of Covid in Japan")
 pacf(covid.ts, lag = 48, main = "PACF Plot of Covid in Japan")
 ```
 
-oscillation in ACF and PACF.
+Looking at the ACF and PACF[[6]](https://ionides.github.io/531w24/02/slides.pdf) plot of the time series, we can observe a significant oscillation, which might suggest a periodicity pattern in it. To further investigate it, we do the spectrum analysis[[7]](https://ionides.github.io/531w24/07/slides.pdf) below:
 
 ```{r}
 # spectrum analysis
@@ -78,7 +89,30 @@ abline(v = spectrum_s$freq[which.max(spectrum_s$spec)], lty = "dotted")
 spectrum_s$freq[which.max(spectrum_s$spec)]
 ```
 
-frequency: $0.2311111\text{week}^{-1}$, period: $4.326923\text{week}$, about a month.
+Since the frequency is $0.2311111\text{week}^{-1}$, thus the period is $4.326923\text{week}$. This means that a seasonal pattern with the period to be a month is appropriate. Besides, from the time series there seems not to be a clear trend so we do not use integration in ARMA fitting. 
+
+## Model Specification
+
+We define the SARIMA[[8]](https://ionides.github.io/531w24/06/slides.pdf) model equation below:
+
+- Define $Y_n$ as reported cases at time $n$.
+- Define $\epsilon_n$ as Gaussian white noise at time $n$, i.e. $\epsilon_n \overset{iid}{\sim}N(0. \sigma^2)$.
+- Define $\mu$ as the expectation value of $Y_t$.
+- Define $\varphi(x) = 1- \varphi_1x - \varphi_2 x^2 - \cdots - \varphi_px^p$.
+- Define $\Phi(x) = 1- \Phi_1x - \Phi_2 x^2 - \cdots - \Phi_px^p$.
+- Define $\psi(x) = 1+ \psi_1x + \psi_2 x^2 + \cdots + \psi_qx^q$.
+- Define $\Psi(x) = 1+ \Psi_1x + \Psi_2 x^2 + \cdots + \Psi_qx^q$.
+- Define $B$ as the backshift operater, $BY_n = Y_{n-1}$.
+
+Then SARIMA model equation can be represented as: 
+
+$$
+\varphi(B)\Phi(B^{12})(Y_n - u) = \psi(B)\Psi(B^{12})\epsilon_{n}
+$$
+
+## Choosing ARMA model
+
+Now our final setting is SARIMA(p,0,q)$\times$(1,0,1) where $0\leq p,q \leq 5$. We calculate the AIC tables as follows:(the code is from slides 5 in class[[9]](https://ionides.github.io/531w24/05/slides.pdf))
 
 ```{r,warning = FALSE, message = FALSE}
 # AIC table
@@ -99,7 +133,9 @@ covid_aic_table <- aic_table1(covid.ts,5,5,1,1)
 kable(covid_aic_table, caption = paste("AIC of SARIMA(p,0,q),(1,0,1),  0 <= p,q <=5"), digits=2)
 ```
 
-Choose ARMA(1,5)
+To achieve lower AIC value as well as keep the model relatively simple, we finally choose the model to be SARIMA(1,0,5)$\times$(1,0,1). Then we check the stationarity of the model and do some diagnostics.
+
+## Model Diagnostics
 
 ```{r}
 # model diagnostics
@@ -111,6 +147,8 @@ autoplot(sarima_model)
 # check residuals
 checkresiduals(sarima_model)
 ```
+
+As we can see, the inverse AR and MA roots are all inside the unit circle, which means the ARMA is both stationary and causal. The Ljung-Box test and residual ACF plot show that there's correlation between the residual in the model, which kind of violates the model assumption. However, the residual histogram shows a nearly normal distribution. Finally we show plots of how well ARMA model fits and also do some forecast.
 
 ```{r}
 # fitted and prediction
@@ -131,5 +169,28 @@ p1 / p2
 ```
 
 
+
+
+
+
+
+
+
+
+
+
+
+# Reference
+
+[1] [COVID-19 Dashboard
+by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University(JHU)](https://gisanddata.maps.arcgis.com/apps/dashboards/bda7594740fd40299423467b48e9ecf6).     
+[2] [ARMA](https://en.wikipedia.org/wiki/Autoregressive_moving-average_model).   
+[3] [SIR/SEIR](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology).   
+[4] [COVID-19 dataset](https://github.com/owid/covid-19-data/tree/master/public/data).   
+[5] [World Health Organization Coronavirus Dashboard](https://data.who.int/dashboards/covid19/cases?n=c).  
+[6] [ACF and PACF](https://ionides.github.io/531w24/02/slides.pdf).   
+[7] [Spectrum Analysis](https://ionides.github.io/531w24/07/slides.pdf).    
+[8] [Seasonality](https://ionides.github.io/531w24/06/slides.pdf).   
+[9] [AIC table code](https://ionides.github.io/531w24/05/slides.pdf)
 
 
